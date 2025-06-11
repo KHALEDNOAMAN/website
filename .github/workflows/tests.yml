@@ -1,0 +1,81 @@
+name: Tests
+
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: '0 4 * * *'
+
+jobs:
+  tests:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    name: PHP 8.3
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: 8.3
+          tools: composer
+          coverage: xdebug
+
+      - name: Install dependencies
+        run:
+          composer update
+
+      - name: Composer normalize
+        run:
+          composer normalize --dry-run --indent-size=4 --indent-style=space
+
+      - name: Coding Standard
+        run:
+          vendor/bin/php-cs-fixer fix --diff --dry-run --verbose
+
+      - name: PHPMD
+        run:
+          vendor/bin/phpmd app xml phpmd.xml
+
+      - name: PHPStan
+        run:
+          vendor/bin/phpstan analyse -vvv
+
+      - name: PHPUnit
+        run: vendor/bin/phpunit
+
+      - name: Upload coverage results to Coveralls
+        env:
+          COVERALLS_REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p build/logs/
+          cp build/coverage/clover.xml build/logs/clover.xml
+          composer global require php-coveralls/php-coveralls
+          php-coveralls --coverage_clover=build/logs/clover.xml -v
+
+  tests-latest:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    name: PHP Latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: latest
+          tools: composer
+          coverage: xdebug
+
+      - name: Install dependencies
+        run:
+          composer update
+
+      - name: PHPUnit
+        run: vendor/bin/phpunit
